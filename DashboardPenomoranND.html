@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Penomoran Nota Dinas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+        }
+        .sidebar {
+            width: 240px;
+            height: 100vh;
+            background: #1b4b91;
+            color: white;
+            position: fixed;
+            top: 0;
+            left: 0;
+            padding: 20px;
+        }
+        .sidebar h2 { margin-top: 0; font-size: 20px; }
+        .sidebar a {
+            display: block;
+            color: white;
+            text-decoration: none;
+            padding: 10px 0;
+            margin-top: 10px;
+        }
+        .sidebar a:hover { opacity: .7; }
+
+        .content {
+            margin-left: 260px;
+            padding: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        label { font-weight: bold; display: block; margin-top: 10px; }
+        input {
+            width: 100%; padding: 8px; margin-top: 4px;
+            border: 1px solid #aaa; border-radius: 5px;
+        }
+        button {
+            margin-top: 15px;
+            padding: 10px 16px;
+            border: none;
+            background: #1b4b91;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover { opacity: .85; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ccc; padding: 10px; }
+        th { background: #e1e7f5; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <h2>📄 Penomoran</h2>
+    <a href="#form">Generate Nomor</a>
+    <a href="#register">Register</a>
+</div>
+
+<div class="content">
+
+    <div class="card" id="form">
+        <h3>Generate Nomor Nota Dinas</h3>
+
+        <label>Kode Klasifikasi</label>
+        <input type="text" id="klasifikasi" placeholder="500.1.2.3">
+
+        <label>Tanggal</label>
+        <input type="date" id="tanggal">
+
+        <label>Tujuan Nota Dinas</label>
+        <input type="text" id="tujuan" placeholder="Kepala Bidang ...">
+
+        <label>Judul Nota Dinas</label>
+        <input type="text" id="judul" placeholder="Permohonan Data ...">
+
+        <button onclick="generateNomor()">Generate Nomor</button>
+
+        <div id="hasil" style="margin-top:15px; font-size:18px;"></div>
+    </div>
+
+    <div class="card" id="register">
+        <h3>Register Penomoran</h3>
+
+        <button onclick="eksporCSV()">Ekspor CSV</button>
+        <button onclick="cetakRegister()">Cetak Register</button>
+        <button onclick="hapusSemua()" style="background:#c62828;">Hapus Semua</button>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Nomor</th>
+                    <th>Klasifikasi</th>
+                    <th>Tanggal</th>
+                    <th>Tujuan</th>
+                    <th>Judul</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="tabel-riwayat-body"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+let riwayat = JSON.parse(localStorage.getItem("riwayatNomor")) || [];
+
+function getNomorTerakhir() {
+    if (riwayat.length === 0) return 0;
+    return parseInt(riwayat[riwayat.length - 1].nomor);
+}
+
+function generateNomor() {
+    const klasifikasi = document.getElementById("klasifikasi").value;
+    const tanggal = document.getElementById("tanggal").value;
+    const tujuan = document.getElementById("tujuan").value;
+    const judul = document.getElementById("judul").value;
+
+    if (!klasifikasi || !tanggal || !tujuan || !judul) {
+        alert("Semua kolom harus diisi.");
+        return;
+    }
+
+    let nomorBaru = getNomorTerakhir() + 1;
+    let nomorFormat = nomorBaru.toString().padStart(4, "0");
+
+    document.getElementById("hasil").innerHTML = 
+        `<b>Nomor Terbit:</b> ${nomorFormat}`;
+
+    const entry = { nomor: nomorFormat, klasifikasi, tanggal, tujuan, judul };
+    riwayat.push(entry);
+
+    localStorage.setItem("riwayatNomor", JSON.stringify(riwayat));
+    renderTabel();
+}
+
+function renderTabel() {
+    const body = document.getElementById("tabel-riwayat-body");
+    body.innerHTML = "";
+
+    riwayat.forEach((r, i) => {
+        body.innerHTML += `
+            <tr>
+                <td>${r.nomor}</td>
+                <td>${r.klasifikasi}</td>
+                <td>${r.tanggal}</td>
+                <td>${r.tujuan}</td>
+                <td>${r.judul}</td>
+                <td><button onclick="hapusSatu(${i})">Hapus</button></td>
+            </tr>
+        `;
+    });
+}
+
+function hapusSatu(i) {
+    riwayat.splice(i, 1);
+    localStorage.setItem("riwayatNomor", JSON.stringify(riwayat));
+    renderTabel();
+}
+
+function hapusSemua() {
+    if (confirm("Hapus seluruh riwayat?")) {
+        riwayat = [];
+        localStorage.removeItem("riwayatNomor");
+        renderTabel();
+    }
+}
+
+function eksporCSV() {
+    let csv = "Nomor,Klasifikasi,Tanggal,Tujuan,Judul\n";
+    riwayat.forEach(r => csv += `${r.nomor},${r.klasifikasi},${r.tanggal},${r.tujuan},${r.judul}\n`);
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "register_penomoran.csv";
+    link.click();
+}
+
+function cetakRegister() {
+    const w = window.open("", "_blank");
+
+    w.document.write(`
+        <html>
+        <head>
+            <title>Register Penomoran</title>
+            <style>
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #000; padding: 8px; }
+                th { background: #eee; }
+                body { font-family: Arial, sans-serif; }
+            </style>
+        </head>
+        <body>
+            <h2>Register Penomoran Nota Dinas</h2>
+            <table>
+                <tr>
+                    <th>Nomor</th>
+                    <th>Klasifikasi</th>
+                    <th>Tanggal</th>
+                    <th>Tujuan</th>
+                    <th>Judul</th>
+                </tr>
+                ${riwayat.map(r => `
+                    <tr>
+                        <td>${r.nomor}</td>
+                        <td>${r.klasifikasi}</td>
+                        <td>${r.tanggal}</td>
+                        <td>${r.tujuan}</td>
+                        <td>${r.judul}</td>
+                    </tr>
+                `).join("")}
+            </table>
+        </body>
+        </html>
+    `);
+
+    w.document.close();
+    w.print();
+}
+
+renderTabel();
+</script>
+
+</body>
+</html>
